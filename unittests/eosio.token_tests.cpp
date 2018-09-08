@@ -1,6 +1,6 @@
 /* Title: change to 'horustokenio_tests.cpp'
 *  Description: I am hijacking the eosio.token_tests.cpp file to run unit test for our
-*    horustokenio contract.
+*    horustokenio contract. Note, set the refund and reward time to 7 seconds to test.
 *  Telegram: @jackdisalvatore
 */
 #include <boost/test/unit_test.hpp>
@@ -127,13 +127,11 @@ public:
 
    action_result stakehorus( account_name from,
                              account_name receiver,
-                             asset        stake_horus_quantity,
-                             bool         transfer ) {
+                             asset        stake_horus_quantity ) {
       return push_action( from, N(stakehorus), mvo()
            ( "from", from)
            ( "receiver", receiver)
            ( "stake_horus_quantity", stake_horus_quantity)
-           ( "transfer", transfer)
       );
    }
 
@@ -352,6 +350,14 @@ BOOST_FIXTURE_TEST_CASE( transfer_tests, horustokenio_tester ) try {
 
 /*************************************************************************
 * 8) Test staking HORUS tokens
+*
+*    alice (stakehorus) 100.000 HORUS -> alice
+*    alice (stakehorus) 100000.0000 HORUS -> bob
+*    alice (stakehorus) 1000000.0000 HORUS -> carol
+*
+*    alice : stakes - 0, 1, 2
+*    alice : userres -  1100100.0000 HORUS
+*    alice : refunds - None
 **************************************************************************/
 BOOST_FIXTURE_TEST_CASE( stakehorus_tests, horustokenio_tester ) try {
 
@@ -363,42 +369,48 @@ BOOST_FIXTURE_TEST_CASE( stakehorus_tests, horustokenio_tester ) try {
 
    // minimum balace error
    BOOST_REQUIRE_EQUAL( wasm_assert_msg( "minimum stake required is '10.0000 HORUS'" ),
-      stakehorus( N(alice), N(alice), asset::from_string("9.9999 HORUS"), false )
+      stakehorus( N(alice), N(alice), asset::from_string("9.9999 HORUS") )
    );
-
    // attempt to stake more HORUS tokens then user has
    BOOST_REQUIRE_EQUAL( wasm_assert_msg( "not enough liquid HORUS to stake" ),
-      stakehorus( N(alice), N(alice), asset::from_string("2000001.0000 HORUS"), false )
+      stakehorus( N(alice), N(alice), asset::from_string("2000001.0000 HORUS") )
    );
-
    // stake must be positive amount
    BOOST_REQUIRE_EQUAL( wasm_assert_msg( "must stake a positive amount" ),
-      stakehorus( N(alice), N(alice), asset::from_string("-100.0000 HORUS"), false )
+      stakehorus( N(alice), N(alice), asset::from_string("-100.0000 HORUS") )
    );
 
-   // alice stake 1 million HORUS tokens for herself
    // while in Beta 1 million HORUS will mint ECASH at a 0.0023% 7 day rate
-   stakehorus( N(alice), N(alice), asset::from_string("1000000.0000 HORUS"), false );
-   // alice staking HORUS for bob
-   stakehorus( N(alice), N(bob), asset::from_string("100.0000 HORUS"), false );
+   stakehorus( N(alice), N(alice), asset::from_string("100.0000 HORUS") );
+   stakehorus( N(alice), N(bob), asset::from_string("100000.0000 HORUS") );
+   stakehorus( N(alice), N(carol), asset::from_string("1000000.0000 HORUS") );
+
+   produce_blocks(1);
 
    auto alice_stake_0 = get_horus_stake( N(alice), 0 );
    REQUIRE_MATCHING_OBJECT( alice_stake_0, mvo()
       ("id", "0")
       ("from", "alice")
       ("to", "alice")
-      ("horus_weight", "1000000.0000 HORUS")
+      ("horus_weight", "100.0000 HORUS")
       ("time_initial", "1577836804")
    );
-
-   produce_blocks(1);
 
    auto alice_stake_1 = get_horus_stake( N(alice), 1 );
    REQUIRE_MATCHING_OBJECT( alice_stake_1, mvo()
       ("id", "1")
       ("from", "alice")
       ("to", "bob")
-      ("horus_weight", "100.0000 HORUS")
+      ("horus_weight", "100000.0000 HORUS")
+      ("time_initial", "1577836805")
+   );
+
+   auto alice_stake_2 = get_horus_stake( N(alice), 2 );
+   REQUIRE_MATCHING_OBJECT( alice_stake_2, mvo()
+      ("id", "2")
+      ("from", "alice")
+      ("to", "carol")
+      ("horus_weight", "1000000.0000 HORUS")
       ("time_initial", "1577836805")
    );
 
@@ -406,79 +418,29 @@ BOOST_FIXTURE_TEST_CASE( stakehorus_tests, horustokenio_tester ) try {
    auto alice_total_resources = get_user_resources( N(alice) );
    REQUIRE_MATCHING_OBJECT( alice_total_resources, mvo()
       ("owner", "alice")
-      ("total_staked_horus", "1000100.0000 HORUS")
+      ("total_staked_horus", "1100100.0000 HORUS")
    );
 
    // attempt to transfer more HORUS tokens then user has liquid now that is is staked
    BOOST_REQUIRE_EQUAL( wasm_assert_msg( "not enough liquid HORUS to transfer" ),
-      transfer( N(alice), N(bob), asset::from_string("1000000.0000 HORUS"), "transfer" )
+      transfer( N(alice), N(bob), asset::from_string("899900.0001 HORUS"), "transfer" )
+   );
+
+   BOOST_REQUIRE_EQUAL( success(),
+      transfer( N(alice), N(bob), asset::from_string("899900.0000 HORUS"), "transfer" )
    );
 
 } FC_LOG_AND_RETHROW()
 
 
 /*************************************************************************
-* 9) Test unstaking HORUS tokens & refunds
-**************************************************************************/
-BOOST_FIXTURE_TEST_CASE( unstakehorus_tests, horustokenio_tester ) try {
-
-   auto horus_token = create( N(horustokenio), asset::from_string("1200000000.0000 HORUS"));
-   produce_blocks(1);
-
-   issue( N(horustokenio), N(alice), asset::from_string("2000000.0000 HORUS"), "issuing HORUS" );
-
-   // alice stake 1 million HORUS tokens for herself
-   stakehorus( N(alice), N(alice), asset::from_string("100.0000 HORUS"), false );
-   // alice staking HORUS for bob
-   stakehorus( N(alice), N(bob), asset::from_string("1000000.0000 HORUS"), false );
-
-   produce_blocks(1);
-
-   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "staked row does not exist" ),
-       unstakehorus( N(alice), 2 )
-   );
-
-   BOOST_REQUIRE_EQUAL( success(),
-      unstakehorus( N(alice), 0 )
-   );
-
-   auto alice_refunds = get_refunds( N(alice) );
-   REQUIRE_MATCHING_OBJECT( alice_refunds, mvo()
-      ( "owner", "alice" )
-      ( "request_time", "1577836806" )
-      ( "horus_amount", "100.0000 HORUS" )
-   );
-
-   auto alice_total_resources = get_user_resources( N(alice) );
-   REQUIRE_MATCHING_OBJECT( alice_total_resources, mvo()
-      ("owner", "alice")
-      ("total_staked_horus", "1000100.0000 HORUS")
-   );
-
-   // refund stake 0 (100.0000 HORUS) sucessful
-   produce_blocks(25);
-
-   alice_total_resources = get_user_resources( N(alice) );
-   REQUIRE_MATCHING_OBJECT( alice_total_resources, mvo()
-      ("owner", "alice")
-      ("total_staked_horus", "1000000.0000 HORUS")
-   );
-
-   BOOST_REQUIRE_EQUAL( success(),
-      unstakehorus( N(alice), 1 )
-   );
-
-   // Make sure that Alice retains ownership of her tokens even when they are staked
-   auto alice_HORUS_balance = get_account(N(alice), "4,HORUS");
-   REQUIRE_MATCHING_OBJECT( alice_HORUS_balance, mvo()
-      ("balance", "2000000.0000 HORUS")
-   );
-
-} FC_LOG_AND_RETHROW()
-
-
-/*************************************************************************
-* 10) Test staking HORUS tokens and claiming rewards
+* 9) Test staking HORUS tokens and claiming rewards
+*
+*   TODO: set permission on claiming
+*
+*   alice (claimreward) -> alice  [success]
+*   alice (claimreward) -> bob   [failure]
+*   bob   (claimreward) -> bob [success]
 **************************************************************************/
 BOOST_FIXTURE_TEST_CASE( claimreward_from_tests, horustokenio_tester ) try {
 
@@ -488,20 +450,22 @@ BOOST_FIXTURE_TEST_CASE( claimreward_from_tests, horustokenio_tester ) try {
 
    issue( N(horustokenio), N(alice), asset::from_string("2000000.0000 HORUS"), "issuing HORUS to alice");
 
-   BOOST_REQUIRE_EQUAL( success(),
-      stakehorus( N(alice), N(alice), asset::from_string("1000000.0000 HORUS"), false )
-   );
-   BOOST_REQUIRE_EQUAL( success(),
-      stakehorus( N(alice), N(alice), asset::from_string("1234.0000 HORUS"), false )
-   );
-   BOOST_REQUIRE_EQUAL( success(),
-      stakehorus( N(alice), N(alice), asset::from_string("100.0000 HORUS"), false )
+   stakehorus( N(alice), N(alice), asset::from_string("100.0000 HORUS") );
+   stakehorus( N(alice), N(bob),   asset::from_string("100000.0000 HORUS") );
+   stakehorus( N(alice), N(carol), asset::from_string("1000000.0000 HORUS") );
+
+   produce_blocks(1);
+
+   // Make sure that Alice retains ownership of her tokens even when they are staked
+   auto alice_HORUS_balance = get_account(N(alice), "4,HORUS");
+   REQUIRE_MATCHING_OBJECT( alice_HORUS_balance, mvo()
+      ("balance", "2000000.0000 HORUS")
    );
 
    auto alice_total_resources = get_user_resources( N(alice) );
    REQUIRE_MATCHING_OBJECT( alice_total_resources, mvo()
       ("owner", "alice")
-      ("total_staked_horus", "1001334.0000 HORUS")
+      ("total_staked_horus", "1100100.0000 HORUS")
    );
 
    produce_blocks(25);
@@ -519,11 +483,24 @@ BOOST_FIXTURE_TEST_CASE( claimreward_from_tests, horustokenio_tester ) try {
       claimreward( N(alice), 3 )
    );
 
-   produce_blocks(5);
+   produce_blocks(1);
 
+   // 0.023% of 100 => 0.00023 * 100 = 0.0233 ECASH
    auto alice_ECASH_balance = get_account(N(alice), "4,ECASH");
    REQUIRE_MATCHING_OBJECT( alice_ECASH_balance, mvo()
-      ("balance", "2333.3111 ECASH")
+      ("balance", "0.0233 ECASH")
+   );
+
+   // 0.00023  * 100000 = 23.3300 ECASH
+   auto bob_ECASH_balance = get_account(N(bob), "4,ECASH");
+   REQUIRE_MATCHING_OBJECT( bob_ECASH_balance, mvo()
+      ("balance", "23.3300 ECASH")
+   );
+
+   // 0.0023 * 1000000 = 2300.0000 ECASH
+   auto carol_ECASH_balance = get_account(N(carol), "4,ECASH");
+   REQUIRE_MATCHING_OBJECT( carol_ECASH_balance, mvo()
+      ("balance", "2333.0000 ECASH")
    );
 
    produce_blocks(6);
@@ -535,84 +512,193 @@ BOOST_FIXTURE_TEST_CASE( claimreward_from_tests, horustokenio_tester ) try {
 
    alice_ECASH_balance = get_account(N(alice), "4,ECASH");
    REQUIRE_MATCHING_OBJECT( alice_ECASH_balance, mvo()
-      ("balance", "4666.3111 ECASH")
+      ("balance", "0.0466 ECASH")
    );
 
-   // Make sure that Alice retains ownership of her tokens even when they are staked
-   auto alice_HORUS_balance = get_account(N(alice), "4,HORUS");
-   REQUIRE_MATCHING_OBJECT( alice_HORUS_balance, mvo()
-      ("balance", "2000000.0000 HORUS")
-   );
 
 } FC_LOG_AND_RETHROW()
 
 
 /*************************************************************************
-* 11) Test staking HORUS tokens and claiming rewards for someone else
+* 10) Test unstaking HORUS tokens & refunds
+*
+*    alice (stakehorus) 100.000 HORUS -> alice
+*    alice (stakehorus) 100000.0000 HORUS -> bob
+*    alice (stakehorus) 1000000.0000 HORUS -> carol
+*
+*    alice : stakes - 0, 1, 2
+*    alice : userres -  1100100.0000 HORUS
+*    alice : refunds - None
 **************************************************************************/
-BOOST_FIXTURE_TEST_CASE( claimreward_receiver_tests, horustokenio_tester ) try {
+BOOST_FIXTURE_TEST_CASE( unstakehorus_tests, horustokenio_tester ) try {
 
-   auto horus_token = create( N(horustokenio), asset::from_string("1200000000.0000 HORUS") );
+   auto horus_token = create( N(horustokenio), asset::from_string("1200000000.0000 HORUS"));
    auto ecash_token = create( N(horustokenio), asset::from_string("1200000000.0000 ECASH") );
    produce_blocks(1);
 
-   issue( N(horustokenio), N(alice), asset::from_string("2000000.0000 HORUS"), "issuing HORUS to alice");
+   issue( N(horustokenio), N(alice), asset::from_string("2000000.0000 HORUS"), "issuing HORUS" );
 
-   BOOST_REQUIRE_EQUAL( success(),
-      stakehorus( N(alice), N(bob), asset::from_string("1000000.0000 HORUS"), false )
-   );
-   BOOST_REQUIRE_EQUAL( success(),
-      stakehorus( N(alice), N(bob), asset::from_string("1234.0000 HORUS"), false )
-   );
-   BOOST_REQUIRE_EQUAL( success(),
-      stakehorus( N(alice), N(bob), asset::from_string("100.0000 HORUS"), false )
-   );
+   stakehorus( N(alice), N(alice), asset::from_string("100.0000 HORUS") );
+   stakehorus( N(alice), N(bob),   asset::from_string("100000.0000 HORUS") );
+   stakehorus( N(alice), N(carol), asset::from_string("1000000.0000 HORUS") );
 
-   auto alice_total_resources = get_user_resources( N(alice) );
-   REQUIRE_MATCHING_OBJECT( alice_total_resources, mvo()
-      ("owner", "alice")
-      ("total_staked_horus", "1001334.0000 HORUS")
-   );
-
-   produce_blocks(25);
-
-   BOOST_REQUIRE_EQUAL( success(),
-      claimreward( N(alice), 0 )
-   );
-   BOOST_REQUIRE_EQUAL( success(),
-      claimreward( N(alice), 1 )
-   );
-   BOOST_REQUIRE_EQUAL( success(),
-      claimreward( N(alice), 2 )
-   );
-   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "stake id does not exist" ),
-      claimreward( N(alice), 3 )
-   );
-
-   produce_blocks(5);
-
-   auto bob_ECASH_balance = get_account(N(bob), "4,ECASH");
-   REQUIRE_MATCHING_OBJECT( bob_ECASH_balance, mvo()
-      ("balance", "2333.3111 ECASH")
-   );
-
-   produce_blocks(6);
-
-   // claim again
-   BOOST_REQUIRE_EQUAL( success(),
-      claimreward( N(alice), 0 )
-   );
-
-   bob_ECASH_balance = get_account(N(bob), "4,ECASH");
-   REQUIRE_MATCHING_OBJECT( bob_ECASH_balance, mvo()
-      ("balance", "4666.3111 ECASH")
-   );
+   produce_blocks(1);
 
    // Make sure that Alice retains ownership of her tokens even when they are staked
    auto alice_HORUS_balance = get_account(N(alice), "4,HORUS");
    REQUIRE_MATCHING_OBJECT( alice_HORUS_balance, mvo()
       ("balance", "2000000.0000 HORUS")
    );
+
+   auto alice_total_resources = get_user_resources( N(alice) );
+   REQUIRE_MATCHING_OBJECT( alice_total_resources, mvo()
+      ("owner", "alice")
+      ("total_staked_horus", "1100100.0000 HORUS")
+   );
+
+   produce_blocks(1);
+
+   // unstake id 0
+   {
+      BOOST_REQUIRE_EQUAL( success(),
+         unstakehorus( N(alice), 0 )
+      );
+
+      auto alice_refunds = get_refunds( N(alice) );
+      REQUIRE_MATCHING_OBJECT( alice_refunds, mvo()
+         ( "owner", "alice" )
+         ( "request_time", "1577836807" )
+         ( "horus_amount", "100.0000 HORUS" )
+      );
+
+      // Total resources remain the same until refund is completed
+      alice_total_resources = get_user_resources( N(alice) );
+      REQUIRE_MATCHING_OBJECT( alice_total_resources, mvo()
+         ("owner", "alice")
+         ("total_staked_horus", "1100100.0000 HORUS")
+      );
+
+      // wait for refund stake 0 (100.0000 HORUS) sucessful
+      produce_blocks(20);
+
+      alice_total_resources = get_user_resources( N(alice) );
+      REQUIRE_MATCHING_OBJECT( alice_total_resources, mvo()
+         ("owner", "alice")
+         ("total_staked_horus", "1100000.0000 HORUS")
+      );
+   }   // end unstake id 0
+
+   // unstake id 1
+   {
+      BOOST_REQUIRE_EQUAL( success(),
+         unstakehorus( N(alice), 1 )
+      );
+
+      auto alice_refunds = get_refunds( N(alice) );
+      REQUIRE_MATCHING_OBJECT( alice_refunds, mvo()
+         ( "owner", "alice" )
+         ( "request_time", "1577836818" )
+         ( "horus_amount", "100000.0000 HORUS" )
+      );
+
+      // Total resources remain the same until refund is completed
+      alice_total_resources = get_user_resources( N(alice) );
+      REQUIRE_MATCHING_OBJECT( alice_total_resources, mvo()
+         ("owner", "alice")
+         ("total_staked_horus", "1100000.0000 HORUS")
+      );
+
+      produce_blocks(10);
+
+      // unstake id 2
+      BOOST_REQUIRE_EQUAL( success(),
+         unstakehorus( N(alice), 2 )
+      );
+      alice_refunds = get_refunds( N(alice) );
+      REQUIRE_MATCHING_OBJECT( alice_refunds, mvo()
+         ( "owner", "alice" )
+         ( "request_time", "1577836823" )
+         ( "horus_amount", "1100000.0000 HORUS" )
+      );
+      alice_total_resources = get_user_resources( N(alice) );
+      REQUIRE_MATCHING_OBJECT( alice_total_resources, mvo()
+         ("owner", "alice")
+         ("total_staked_horus", "1100000.0000 HORUS")
+      );
+
+      // wait for refund stake 1 (1000000.0000 HORUS) sucessful
+      produce_blocks(10);
+
+      alice_total_resources = get_user_resources( N(alice) );
+      REQUIRE_MATCHING_OBJECT( alice_total_resources, mvo()
+         ("owner", "alice")
+         ("total_staked_horus", "1000000.0000 HORUS")
+      );
+   }   // end unstake id 1
+
+} FC_LOG_AND_RETHROW()
+
+
+/*************************************************************************
+* 10) Test staking HORUS tokens and claiming rewards for someone else
+**************************************************************************/
+BOOST_FIXTURE_TEST_CASE( claimreward_receiver_tests, horustokenio_tester ) try {
+
+   // auto horus_token = create( N(horustokenio), asset::from_string("1200000000.0000 HORUS") );
+   // auto ecash_token = create( N(horustokenio), asset::from_string("1200000000.0000 ECASH") );
+   // produce_blocks(1);
+
+   // issue( N(horustokenio), N(alice), asset::from_string("2000000.0000 HORUS"), "issuing HORUS to alice");
+
+   // stakehorus( N(alice), N(alice), asset::from_string("100.0000 HORUS") );
+   // stakehorus( N(alice), N(bob),   asset::from_string("100000.0000 HORUS") );
+   // stakehorus( N(alice), N(carol), asset::from_string("1000000.0000 HORUS") );
+
+   // auto alice_total_resources = get_user_resources( N(alice) );
+   // REQUIRE_MATCHING_OBJECT( alice_total_resources, mvo()
+   //    ("owner", "alice")
+   //    ("total_staked_horus", "1001334.0000 HORUS")
+   // );
+
+   // produce_blocks(25);
+
+   // BOOST_REQUIRE_EQUAL( success(),
+   //    claimreward( N(alice), 0 )
+   // );
+   // BOOST_REQUIRE_EQUAL( success(),
+   //    claimreward( N(alice), 1 )
+   // );
+   // BOOST_REQUIRE_EQUAL( success(),
+   //    claimreward( N(alice), 2 )
+   // );
+   // BOOST_REQUIRE_EQUAL( wasm_assert_msg( "stake id does not exist" ),
+   //    claimreward( N(alice), 3 )
+   // );
+
+   // produce_blocks(5);
+
+   // auto bob_ECASH_balance = get_account(N(bob), "4,ECASH");
+   // REQUIRE_MATCHING_OBJECT( bob_ECASH_balance, mvo()
+   //    ("balance", "2333.3111 ECASH")
+   // );
+
+   // produce_blocks(6);
+
+   // // claim again
+   // BOOST_REQUIRE_EQUAL( success(),
+   //    claimreward( N(alice), 0 )
+   // );
+
+   // bob_ECASH_balance = get_account(N(bob), "4,ECASH");
+   // REQUIRE_MATCHING_OBJECT( bob_ECASH_balance, mvo()
+   //    ("balance", "4666.3111 ECASH")
+   // );
+
+   // // Make sure that Alice retains ownership of her tokens even when they are staked
+   // auto alice_HORUS_balance = get_account(N(alice), "4,HORUS");
+   // REQUIRE_MATCHING_OBJECT( alice_HORUS_balance, mvo()
+   //    ("balance", "2000000.0000 HORUS")
+   // );
 
 
 } FC_LOG_AND_RETHROW()
