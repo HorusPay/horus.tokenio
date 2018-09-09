@@ -9,8 +9,8 @@
 
 namespace horuspaytoken {
 
-   static constexpr time refund_delay     = 7;//*24*3600;   // 7 days
-   const uint64_t REQUIRED_STAKE_DURATION = 7;//*24*3600;   // 7 days
+   static constexpr time refund_delay     = 7*24*3600;   // 7 days
+   const uint64_t REQUIRED_STAKE_DURATION = 7*24*3600;   // 7 days
    ///static constexpr time refund_delay     = 7*24*3600;   // 7 days
    ///const uint64_t REQUIRED_STAKE_DURATION = 7*24*3600;   // 7 days
 
@@ -128,21 +128,21 @@ namespace horuspaytoken {
    };
 
 
-   void inline horustokenio::create_delayed_refund( account_name& owner, const asset&  stake_horus_delta ) {
+   void inline horustokenio::create_delayed_refund( const uint64_t& refund_id, account_name& owner, const asset&  stake_horus_delta ) {
       horus_refunds_table horus_refunds( _self, owner );
       auto horus_balance = stake_horus_delta;
 
       eosio_assert( horus_balance > asset(0, HORUS_SYMBOL), "must be a positive number" );
 
-      print("creating new HORUS refund\n");
+      print("creating new '", horus_balance, "' refund with id:", refund_id, "\n");
       auto request = horus_refunds.emplace( owner, [&]( auto& r ) {
-         r.id           = horus_refunds.available_primary_key();
+         r.id           = refund_id;
          r.horus_amount = horus_balance;
          r.request_time = now();
       });
 
       // create deferred transaction
-      print("Please wait 7 days to be refunded\n");
+      print("please wait 7 days to be refunded\n");
       eosio::transaction out;
       out.actions.emplace_back( permission_level{owner, N(active)}, _self, N(refundid), std::make_tuple(owner, request->id) );
       out.delay_sec = refund_delay + 1;
@@ -261,8 +261,8 @@ namespace horuspaytoken {
 
       eosio_assert( unstake_itr != staked_index.end(), "staked row does not exist");
 
-      create_delayed_refund( from, unstake_itr->horus_weight );
-      create_or_update_refund( from, unstake_itr->to, -(unstake_itr->horus_weight));
+      create_delayed_refund( unstake_itr->id, from, unstake_itr->horus_weight );
+      //create_or_update_refund( from, unstake_itr->to, -(unstake_itr->horus_weight) );
 
       staked_index.erase( unstake_itr );
    }
@@ -330,7 +330,9 @@ namespace horuspaytoken {
 
       horus_refunds_table horus_refunds( _self, owner );
       auto request = horus_refunds.find( refund_id );
+
       eosio_assert( request != horus_refunds.end(), "refund id request not found" );
+      eosio_assert( request->id == refund_id, "refund id not found" );
 
       if ( now() < request->request_time + refund_delay ) {
          string err = "refund is not available yet " + to_string( (request->request_time + refund_delay) - now() )
@@ -338,13 +340,13 @@ namespace horuspaytoken {
          eosio_assert( false, err.c_str() );
       }
       // Until now() becomes NOW, the fact that now() is the timestamp of the previous block could in theory
-      // allow people to get their tokens earlier than the 3 day delay if the unstake happened immediately after many
+      // allow people to get their tokens earlier than the 7 day delay if the unstake happened immediately after many
       // consecutive missed blocks.
 
-      print("refunding '", N(owner), "' ", request->horus_amount, "\n");
-      //update_user_resources( owner, -(req->horus_amount) );
+      update_user_resources( owner, -(request->horus_amount) );
+      print("refunding '", eosio::name{owner}, "' ", request->horus_amount, "\n");
 
-      //refunds_tbl.erase( req );
+      horus_refunds.erase( request );
    }
 
 

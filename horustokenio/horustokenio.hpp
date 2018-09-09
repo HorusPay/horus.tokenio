@@ -66,7 +66,8 @@ private:
    void inline update_user_resources( account_name& owner,
                                       const asset&  stake_horus_delta );
 
-   void inline create_delayed_refund( account_name& owner, const asset& stake_horus_delta );
+   void inline create_delayed_refund( const uint64_t& refund_id, account_name& owner,
+                                      const asset& stake_horus_delta );
 
    void inline create_or_update_refund( account_name& from,
                                         account_name  receiver,
