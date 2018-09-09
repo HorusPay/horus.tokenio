@@ -1,0 +1,1 @@
+nodeos --contracts-console

@@ -12,14 +12,19 @@ if [ "$1" = "-live" ] || [ "$2" = "-live" ] || [ "$3" = "-live" ]; then
 	CLEOS="$CLEOS $CLEOS_PARAMS"
 fi
 
+open nodeos.command
+sleep 3
+
 function printdetails () {
 	echo '---------------------------------------------------------'
 	echo 'STAKED HORUS'
 	${CLEOS} get table horustokenio ${FROM} stakedhorus
-	echo 'REFUNDS'
-	${CLEOS} get table horustokenio ${FROM} refunds
 	echo 'USERRES'
 	${CLEOS} get table horustokenio ${FROM} userres
+	echo 'HORUSREFUNDS'
+	${CLEOS} get table horustokenio ${FROM} horusrefunds
+	echo 'REFUNDS'
+	${CLEOS} get table horustokenio ${FROM} refunds
 	echo $FROM 'BALANCE:'
 	${CLEOS} get currency balance horustokenio ${FROM} HORUS
 	${CLEOS} get currency balance horustokenio ${FROM} ECASH
@@ -67,6 +72,15 @@ staketest () {
 	${CLEOS} push action horustokenio stakehorus '["'$1'","'$2'","25.0000 HORUS"]' -p ${1}
 	printdetails
 
+}
+
+stakeandclaimtest () {
+	echo 'CREATE 3 STAKES'
+	${CLEOS} push action horustokenio stakehorus '["'$1'","'$2'","100.0000 HORUS"]' -p ${1}
+	${CLEOS} push action horustokenio stakehorus '["'$1'","'$2'","50.0000 HORUS"]' -p ${1}
+	${CLEOS} push action horustokenio stakehorus '["'$1'","'$2'","25.0000 HORUS"]' -p ${1}
+	printdetails
+
 	${CLEOS} push action horustokenio unstakehorus '["'$1'","1"]' -p ${1}
 	printSleepPrint
 
@@ -87,7 +101,7 @@ staketest () {
 	printSleepPrint
 }
 
-stakeforbob () { 
+stakeforbob () {
 	echo $1
 }
 
@@ -96,11 +110,12 @@ stakeforbob () {
 # staketest $FROM $FROM
 
 # stake for a friend
-boundstest
+#boundstest
 
-# staketest $FROM $TO
+#staketest $FROM $TO
+printdetails
 
-
+killall nodeos
 
 ########### COMMMAND LINE HELPERS  ###########
 # cleos -u http://dev.cryptolions.io:18888 push action horustokenio transfer '[ "horustester1", "bob", "0.5250 ECASH", "Cash is King" ]' -p horustester1
