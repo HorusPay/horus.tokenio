@@ -10,6 +10,7 @@
 
 namespace horuspaytoken {
 
+
 #define HORUS_SYMBOL S(4,HORUS)
 #define ECASH_SYMBOL S(4,ECASH)
 
@@ -50,6 +51,8 @@ public:
 
    void refundhorus( account_name owner );
 
+   void refundid( account_name owner, const uint64_t refund_id );
+
    void claimreward( account_name owner, uint64_t stake_id );
 
    /*void rmtoken( const string sym );*/
@@ -62,6 +65,8 @@ private:
 
    void inline update_user_resources( account_name& owner,
                                       const asset&  stake_horus_delta );
+
+   void inline create_delayed_refund( account_name& owner, const asset& stake_horus_delta );
 
    void inline create_or_update_refund( account_name& from,
                                         account_name  receiver,
