@@ -86,6 +86,13 @@ public:
       return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "staked_horus", data, abi_serializer_max_time );
    }
 
+   fc::variant get_horus_refunds( account_name owner, const uint64_t& refund_id )
+   {
+      vector<char> data = get_row_by_account( N(horustokenio), owner, N(horusrefunds), refund_id );
+      return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "refund_requests", data, abi_serializer_max_time );
+   }
+
+   // DEPRICATED WAY OF GETTING REFUNDS
    fc::variant get_refunds( account_name owner )
    {
       vector<char> data = get_row_by_account( N(horustokenio), owner, N(refunds), owner );
@@ -382,7 +389,7 @@ BOOST_FIXTURE_TEST_CASE( stakehorus_tests, horustokenio_tester ) try {
 
    // while in Beta 1 million HORUS will mint ECASH at a 0.0023% 7 day rate
    stakehorus( N(alice), N(alice), asset::from_string("100.0000 HORUS") );
-   stakehorus( N(alice), N(bob), asset::from_string("100000.0000 HORUS") );
+   stakehorus( N(alice), N(bob),   asset::from_string("100000.0000 HORUS") );
    stakehorus( N(alice), N(carol), asset::from_string("1000000.0000 HORUS") );
 
    produce_blocks(1);
@@ -444,11 +451,15 @@ BOOST_FIXTURE_TEST_CASE( stakehorus_tests, horustokenio_tester ) try {
 **************************************************************************/
 BOOST_FIXTURE_TEST_CASE( claimreward_from_tests, horustokenio_tester ) try {
 
-   auto horus_token = create( N(horustokenio), asset::from_string("1200000000.0000 HORUS") );
+   /**********************************************************************
+   *              S E T U P ----- S T A R T
+   **********************************************************************/
+
+   auto horus_token = create( N(horustokenio), asset::from_string("1200000000.0000 HORUS"));
    auto ecash_token = create( N(horustokenio), asset::from_string("1200000000.0000 ECASH") );
    produce_blocks(1);
 
-   issue( N(horustokenio), N(alice), asset::from_string("2000000.0000 HORUS"), "issuing HORUS to alice");
+   issue( N(horustokenio), N(alice), asset::from_string("2000000.0000 HORUS"), "issuing HORUS" );
 
    stakehorus( N(alice), N(alice), asset::from_string("100.0000 HORUS") );
    stakehorus( N(alice), N(bob),   asset::from_string("100000.0000 HORUS") );
@@ -467,6 +478,12 @@ BOOST_FIXTURE_TEST_CASE( claimreward_from_tests, horustokenio_tester ) try {
       ("owner", "alice")
       ("total_staked_horus", "1100100.0000 HORUS")
    );
+
+   produce_blocks(1);
+
+   /**********************************************************************
+   *              S E T U P ----- E N D
+   **********************************************************************/
 
    produce_blocks(25);
 
@@ -491,10 +508,10 @@ BOOST_FIXTURE_TEST_CASE( claimreward_from_tests, horustokenio_tester ) try {
       ("balance", "0.0233 ECASH")
    );
 
-   // 0.00023  * 100000 = 23.3300 ECASH
+   // 0.00046  * 100000 = 46.6600 ECASH
    auto bob_ECASH_balance = get_account(N(bob), "4,ECASH");
    REQUIRE_MATCHING_OBJECT( bob_ECASH_balance, mvo()
-      ("balance", "23.3300 ECASH")
+      ("balance", "46.6600 ECASH")
    );
 
    // 0.0023 * 1000000 = 2300.0000 ECASH
@@ -532,6 +549,10 @@ BOOST_FIXTURE_TEST_CASE( claimreward_from_tests, horustokenio_tester ) try {
 **************************************************************************/
 BOOST_FIXTURE_TEST_CASE( unstakehorus_tests, horustokenio_tester ) try {
 
+   /**********************************************************************
+   *              S E T U P ----- S T A R T
+   **********************************************************************/
+
    auto horus_token = create( N(horustokenio), asset::from_string("1200000000.0000 HORUS"));
    auto ecash_token = create( N(horustokenio), asset::from_string("1200000000.0000 ECASH") );
    produce_blocks(1);
@@ -558,18 +579,30 @@ BOOST_FIXTURE_TEST_CASE( unstakehorus_tests, horustokenio_tester ) try {
 
    produce_blocks(1);
 
+   /**********************************************************************
+   *              S E T U P ----- E N D
+   **********************************************************************/
+
    // unstake id 0
    {
       BOOST_REQUIRE_EQUAL( success(),
          unstakehorus( N(alice), 0 )
       );
 
-      auto alice_refunds = get_refunds( N(alice) );
-      REQUIRE_MATCHING_OBJECT( alice_refunds, mvo()
-         ( "owner", "alice" )
-         ( "request_time", "1577836807" )
-         ( "horus_amount", "100.0000 HORUS" )
-      );
+      auto alice_horus_refund_0 = get_horus_refunds( N(alice), 0 );
+      REQUIRE_MATCHING_OBJECT( alice_horus_refund_0, mvo()
+         ( "id", "0")
+         ( "request_time", "1577836807")
+         ( "horus_amount", "100.0000 HORUS")
+      )
+
+      // DEPRICATED TABLE
+      // auto alice_refunds = get_refunds( N(alice) );
+      // REQUIRE_MATCHING_OBJECT( alice_refunds, mvo()
+      //    ( "owner", "alice" )
+      //    ( "request_time", "1577836807" )
+      //    ( "horus_amount", "100.0000 HORUS" )
+      // );
 
       // Total resources remain the same until refund is completed
       alice_total_resources = get_user_resources( N(alice) );
@@ -594,12 +627,20 @@ BOOST_FIXTURE_TEST_CASE( unstakehorus_tests, horustokenio_tester ) try {
          unstakehorus( N(alice), 1 )
       );
 
-      auto alice_refunds = get_refunds( N(alice) );
-      REQUIRE_MATCHING_OBJECT( alice_refunds, mvo()
-         ( "owner", "alice" )
-         ( "request_time", "1577836818" )
-         ( "horus_amount", "100000.0000 HORUS" )
-      );
+      auto alice_horus_refund_1 = get_horus_refunds( N(alice), 1 );
+      REQUIRE_MATCHING_OBJECT( alice_horus_refund_1, mvo()
+         ( "id", "1")
+         ( "request_time", "1577836818")
+         ( "horus_amount", "100000.0000 HORUS")
+      )
+
+      // DEPRICATED TABLE
+      // auto alice_refunds = get_refunds( N(alice) );
+      // REQUIRE_MATCHING_OBJECT( alice_refunds, mvo()
+      //    ( "owner", "alice" )
+      //    ( "request_time", "1577836818" )
+      //    ( "horus_amount", "100000.0000 HORUS" )
+      // );
 
       // Total resources remain the same until refund is completed
       alice_total_resources = get_user_resources( N(alice) );
@@ -614,19 +655,20 @@ BOOST_FIXTURE_TEST_CASE( unstakehorus_tests, horustokenio_tester ) try {
       BOOST_REQUIRE_EQUAL( success(),
          unstakehorus( N(alice), 2 )
       );
-      alice_refunds = get_refunds( N(alice) );
-      REQUIRE_MATCHING_OBJECT( alice_refunds, mvo()
-         ( "owner", "alice" )
+      auto alice_horus_refund_2 = get_horus_refunds( N(alice), 2 );
+      REQUIRE_MATCHING_OBJECT( alice_horus_refund_2, mvo()
+         ( "id", "2" )
          ( "request_time", "1577836823" )
-         ( "horus_amount", "1100000.0000 HORUS" )
+         ( "horus_amount", "1000000.0000 HORUS" )
       );
+      // total res doesn't change
       alice_total_resources = get_user_resources( N(alice) );
       REQUIRE_MATCHING_OBJECT( alice_total_resources, mvo()
          ("owner", "alice")
          ("total_staked_horus", "1100000.0000 HORUS")
       );
 
-      // wait for refund stake 1 (1000000.0000 HORUS) sucessful
+      // wait for refund stake 1 (100000.0000 HORUS) sucessful
       produce_blocks(10);
 
       alice_total_resources = get_user_resources( N(alice) );
@@ -634,6 +676,14 @@ BOOST_FIXTURE_TEST_CASE( unstakehorus_tests, horustokenio_tester ) try {
          ("owner", "alice")
          ("total_staked_horus", "1000000.0000 HORUS")
       );
+
+      produce_blocks(10);
+
+      // now alice has all her HORUS liquid again
+      BOOST_REQUIRE_EQUAL( success(),
+         transfer( N(alice), N(bob), asset::from_string("2000000.0000 HORUS"), "transfer" )
+      );
+
    }   // end unstake id 1
 
 } FC_LOG_AND_RETHROW()
