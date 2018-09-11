@@ -9,10 +9,8 @@
 
 namespace horuspaytoken {
 
-   static constexpr time refund_delay     = 7*24*3600;   // 7 days
+   static constexpr time refund_delay = 7*24*3600;   // 7 days
    const uint64_t REQUIRED_STAKE_DURATION = 7*24*3600;   // 7 days
-   ///static constexpr time refund_delay     = 7*24*3600;   // 7 days
-   ///const uint64_t REQUIRED_STAKE_DURATION = 7*24*3600;   // 7 days
 
    /***************************************************************************
     *                               T A B L E S
@@ -128,7 +126,7 @@ namespace horuspaytoken {
    };
 
 
-   void inline horustokenio::create_delayed_refund( const uint64_t& refund_id, account_name& owner, const asset&  stake_horus_delta ) {
+   void inline horustokenio::create_horus_refund( const uint64_t& refund_id, account_name& owner, const asset&  stake_horus_delta ) {
       horus_refunds_table horus_refunds( _self, owner );
       auto horus_balance = stake_horus_delta;
 
@@ -144,79 +142,80 @@ namespace horuspaytoken {
       // create deferred transaction
       print("please wait 7 days to be refunded\n");
       eosio::transaction out;
-      out.actions.emplace_back( permission_level{owner, N(active)}, _self, N(refundid), std::make_tuple(owner, request->id) );
+      out.actions.emplace_back( permission_level{owner, N(active)}, _self, N(refundbyid), std::make_tuple(owner, request->id) );
       out.delay_sec = refund_delay + 1;
-      cancel_deferred( owner ); // TODO: Remove this line when repacing derred trxs is fixed
-      out.send( owner, owner, true );
+      //cancel_deferred( owner ); // TODO: Remove this line when repacing derred trxs is fixed
+      out.send( request->id, owner, true );
    }
 
 
-   void inline horustokenio::create_or_update_refund( account_name& from,
-                                                      account_name  receiver,
-                                                      const asset&  stake_horus_delta ) {
-      refunds_table refunds_tbl( _self, from );
-      auto req = refunds_tbl.find( from );
+   // DEPRICATED !
+   // void inline horustokenio::create_or_update_refund( account_name& from,
+   //                                                    account_name  receiver,
+   //                                                    const asset&  stake_horus_delta ) {
+   //    refunds_table refunds_tbl( _self, from );
+   //    auto req = refunds_tbl.find( from );
 
-      //create/update/delete refund
-      auto horus_balance = stake_horus_delta;
-      bool need_deferred_trx = false;
+   //    //create/update/delete refund
+   //    auto horus_balance = stake_horus_delta;
+   //    bool need_deferred_trx = false;
 
-      // resources are same sign by assertions in delegatebw and undelegatebw
-      bool is_undelegating = (horus_balance.amount ) < 0;
-      bool is_delegating_to_self = ( from == receiver);
+   //    // resources are same sign by assertions in delegatebw and undelegatebw
+   //    bool is_undelegating = (horus_balance.amount ) < 0;
+   //    bool is_delegating_to_self = ( from == receiver);
 
-      if( is_delegating_to_self || is_undelegating ) {
-         if ( req != refunds_tbl.end() ) { //need to update refund
-            print("Modifing Refund\n");
-            refunds_tbl.modify( req, 0, [&]( refund_request& r ) {
-               if ( horus_balance < asset(0, HORUS_SYMBOL) ) {
-                  r.request_time = now();
-               }
-               r.horus_amount -= horus_balance;
-               if ( r.horus_amount < asset(0, HORUS_SYMBOL) ) {
-                  horus_balance = -r.horus_amount;
-                  r.horus_amount = asset(0, HORUS_SYMBOL);
-               } else {
-                  horus_balance = asset(0, HORUS_SYMBOL);
-               }
-            });
+   //    if( is_delegating_to_self || is_undelegating ) {
+   //       if ( req != refunds_tbl.end() ) { //need to update refund
+   //          print("Modifing Refund\n");
+   //          refunds_tbl.modify( req, 0, [&]( refund_request& r ) {
+   //             if ( horus_balance < asset(0, HORUS_SYMBOL) ) {
+   //                r.request_time = now();
+   //             }
+   //             r.horus_amount -= horus_balance;
+   //             if ( r.horus_amount < asset(0, HORUS_SYMBOL) ) {
+   //                horus_balance = -r.horus_amount;
+   //                r.horus_amount = asset(0, HORUS_SYMBOL);
+   //             } else {
+   //                horus_balance = asset(0, HORUS_SYMBOL);
+   //             }
+   //          });
 
-            eosio_assert( asset(0, HORUS_SYMBOL) <= req->horus_amount, "negative HORUS refund amount" ); //should never happen
+   //          eosio_assert( asset(0, HORUS_SYMBOL) <= req->horus_amount, "negative HORUS refund amount" ); //should never happen
 
-            if ( req->horus_amount == asset(0, HORUS_SYMBOL) ) {
-               refunds_tbl.erase( req );
-               need_deferred_trx = false;
-            } else {
-               need_deferred_trx = true;
-            }
+   //          if ( req->horus_amount == asset(0, HORUS_SYMBOL) ) {
+   //             refunds_tbl.erase( req );
+   //             need_deferred_trx = false;
+   //          } else {
+   //             need_deferred_trx = true;
+   //          }
 
-         } else if ( horus_balance < asset(0, HORUS_SYMBOL) ) { //need to create refund
-            print("Creating Refund\n");
-            refunds_tbl.emplace( from, [&]( refund_request& r ) {
-               r.owner = from;
+   //       } else if ( horus_balance < asset(0, HORUS_SYMBOL) ) { //need to create refund
+   //          print("Creating Refund\n");
+   //          refunds_tbl.emplace( from, [&]( refund_request& r ) {
+   //             r.owner = from;
 
-               if ( horus_balance < asset(0, HORUS_SYMBOL) ) {
-                  r.horus_amount = -horus_balance;
-                  horus_balance = asset(0, HORUS_SYMBOL);
-               } // else r.net_amount = 0 by default constructor
+   //             if ( horus_balance < asset(0, HORUS_SYMBOL) ) {
+   //                r.horus_amount = -horus_balance;
+   //                horus_balance = asset(0, HORUS_SYMBOL);
+   //             } // else r.net_amount = 0 by default constructor
 
-               r.request_time = now();
-            });
-            need_deferred_trx = true;
-         } // else stake increase requested with no existing row in refunds_tbl -> nothing to do with refunds_tbl
-      } /// end if is_delegating_to_self || is_undelegating
+   //             r.request_time = now();
+   //          });
+   //          need_deferred_trx = true;
+   //       } // else stake increase requested with no existing row in refunds_tbl -> nothing to do with refunds_tbl
+   //    } /// end if is_delegating_to_self || is_undelegating
 
-      if ( need_deferred_trx ) {
-         print("Creating deferred refund transaction\n");
-         eosio::transaction out;
-         out.actions.emplace_back( permission_level{ from, N(active) }, _self, N(refundhorus), from );
-         out.delay_sec = refund_delay + 1;
-         cancel_deferred( from ); // TODO: Remove this line when replacing deferred trxs is fixed
-         out.send( from, from, true );
-      } else {
-         cancel_deferred( from );
-      }
-   };
+   //    if ( need_deferred_trx ) {
+   //       print("Creating deferred refund transaction\n");
+   //       eosio::transaction out;
+   //       out.actions.emplace_back( permission_level{ from, N(active) }, _self, N(refundhorus), from );
+   //       out.delay_sec = refund_delay + 1;
+   //       cancel_deferred( from ); // TODO: Remove this line when replacing deferred trxs is fixed
+   //       out.send( from, from, true );
+   //    } else {
+   //       cancel_deferred( from );
+   //    }
+   // }
 
 
    /****************************************************************************
@@ -261,7 +260,7 @@ namespace horuspaytoken {
 
       eosio_assert( unstake_itr != staked_index.end(), "staked row does not exist");
 
-      create_delayed_refund( unstake_itr->id, from, unstake_itr->horus_weight );
+      create_horus_refund( unstake_itr->id, from, unstake_itr->horus_weight );
       //create_or_update_refund( from, unstake_itr->to, -(unstake_itr->horus_weight) );
 
       staked_index.erase( unstake_itr );
@@ -337,7 +336,7 @@ namespace horuspaytoken {
    }
 
 
-   void horustokenio::refundid( account_name owner, const uint64_t refund_id ) {
+   void horustokenio::refundbyid( account_name owner, const uint64_t refund_id ) {
       require_auth( owner );
 
       horus_refunds_table horus_refunds( _self, owner );
@@ -348,7 +347,7 @@ namespace horuspaytoken {
 
       if ( now() < request->request_time + refund_delay ) {
          string err = "refund is not available yet " + to_string( (request->request_time + refund_delay) - now() )
-                     + " seconds remaining";
+                      + " seconds remaining";
          eosio_assert( false, err.c_str() );
       }
       // Until now() becomes NOW, the fact that now() is the timestamp of the previous block could in theory
@@ -370,7 +369,7 @@ namespace horuspaytoken {
       eosio_assert( req != refunds_tbl.end(), "refund request not found" );
       if ( now() < req->request_time + refund_delay ) {
          string err = "refund is not available yet " + to_string( (req->request_time + refund_delay) - now() )
-                     + " seconds remaining";
+                      + " seconds remaining";
          eosio_assert( false, err.c_str() );
       }
       // Until now() becomes NOW, the fact that now() is the timestamp of the previous block could in theory
