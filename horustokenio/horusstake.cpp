@@ -298,6 +298,18 @@ namespace horuspaytoken {
           // 1% payouts a month or 0.0023% per week
          reward_amount = int64_t( (stake_itr->horus_weight.amount * 2333) / 1000000 );
       }
+      // < 500k
+      else if ( stake_itr->horus_weight >= asset(5000000000, HORUS_SYMBOL) )
+      {
+          // 0.5% payouts a month or 0.001166% per week
+         reward_amount = int64_t( (stake_itr->horus_weight.amount * 1166) / 1000000 );
+      }
+      // < 100k
+      else if ( stake_itr->horus_weight >= asset(1000000000, HORUS_SYMBOL) )
+      {
+          // 0.2% payouts a month or 0.00046% per week
+         reward_amount = int64_t( (stake_itr->horus_weight.amount * 4666) / 10000000 );
+      }
       else
       {
           // 0.1% payouts a month or 0.00023% per week
