@@ -2,6 +2,8 @@ CLEOS="cleos"
 CLEOS_PARAMS="-u http://dev.cryptolions.io:18888"
 FROM="horustester1"
 TO="horustester2"
+USER3="horustester3"
+USER4="horustester4"
 OWNER="horustester1"
 STAKE_ID=0
 WAIT_PERIOD=7		#in seconds
@@ -10,6 +12,13 @@ WAIT_PERIOD=7		#in seconds
 # if the -live flag is included, connect to an external network
 if [ "$1" = "-live" ] || [ "$2" = "-live" ] || [ "$3" = "-live" ]; then
 	CLEOS="$CLEOS $CLEOS_PARAMS"
+fi
+
+# if the --wallet-unlock flag is include, then prompt for password to
+# unlock the default wallet
+if [ "$1" = "--wallet-unlock" ] || [ "$2" = "--wallet-unlock" ] \
+|| [ "$3" = "--wallet-unlock" ]; then
+	${CLEOS} wallet unlock
 fi
 
 open nodeos.command
@@ -31,6 +40,12 @@ function printdetails () {
 	echo $TO 'BALANCE:'
 	${CLEOS} get currency balance horustokenio ${TO} HORUS
 	${CLEOS} get currency balance horustokenio ${TO} ECASH
+	echo $USER3 'BALANCE:'
+	${CLEOS} get currency balance horustokenio ${USER3} HORUS
+	${CLEOS} get currency balance horustokenio ${USER3} ECASH
+	echo $USER4 'BALANCE:'
+	${CLEOS} get currency balance horustokenio ${USER4} HORUS
+	${CLEOS} get currency balance horustokenio ${USER4} ECASH
 	echo '---------------------------------------------------------'
 }
 
@@ -45,6 +60,26 @@ if [ "$1" = "-print" ] || [ "$2" = "-print" ] || [ "$3" = "-print" ]; then
 	printdetails
 	exit
 fi
+
+createhorus () {
+	echo "Creating HORUS Token"
+	${CLEOS} push action horustokenio create '["horustokenio","1200000000.0000 HORUS"]' -p horustokenio
+	sleep .75
+}
+
+createecash () {
+	echo "Creating ECASH Token"
+	${CLEOS} push action horustokenio create '["horustokenio","1200000000.0000 ECASH"]' -p horustokenio
+	sleep .75
+}
+
+issuehorus () {
+	echo "Issuing HORUS Token"
+	${CLEOS} push action horustokenio issue '["'$1'","10000000.0000 HORUS","HorusPay.io"]' -p horustokenio
+	${CLEOS} push action horustokenio issue '["'$2'","10000000.0000 HORUS","HorusPay.io"]' -p horustokenio
+	${CLEOS} push action horustokenio issue '["'$3'","10000000.0000 HORUS","HorusPay.io"]' -p horustokenio
+	${CLEOS} push action horustokenio issue '["'$4'","10000000.0000 HORUS","HorusPay.io"]' -p horustokenio
+}
 
 boundstest () {
 	echo 'EXPECTED: assertion fail due to staking min requirements'
@@ -105,6 +140,90 @@ stakeforbob () {
 	echo $1
 }
 
+# As a user with 1 Million HORUS
+# I will stake:
+#         500 for FROM    id 0
+#         100 for TO      id 1
+#     100,000 for USER3   id 2
+#     100,600 for USER4   id 3
+#       4,000 for FROM    id 4
+#       7,000 for FROM    id 5
+#    --------
+#     212,200 HORUS total
+#
+#  unstake 4 :
+#      212200 - 4000 = 208,200
+#
+#  unstake 0 and 3 :
+#      208,200 -  100600 = 107,600
+#      107,600 -  100    = 107,500
+#
+#  unstake 1, 5 and 2 :
+checkrefunds () {
+	echo 'CREATE 6 STAKES'
+	${CLEOS} push action horustokenio stakehorus '["'$1'","'$1'","500.0000 HORUS"]' -p ${1}
+	${CLEOS} push action horustokenio stakehorus '["'$1'","'$2'","100.0000 HORUS"]' -p ${1}
+	${CLEOS} push action horustokenio stakehorus '["'$1'","'$3'","100000.0000 HORUS"]' -p ${1}
+	${CLEOS} push action horustokenio stakehorus '["'$1'","'$4'","100600.0000 HORUS"]' -p ${1}
+	${CLEOS} push action horustokenio stakehorus '["'$1'","'$1'","4000.0000 HORUS"]' -p ${1}
+	${CLEOS} push action horustokenio stakehorus '["'$1'","'$1'","7000.0000 HORUS"]' -p ${1}
+	printdetails $STAKEDHORUS $USERRES $HORUSREFUNDS
+	echo 'EXPECTED: STAKEDHORUS    ids: 0,1,2,3,4,5'
+	echo 'EXPECTED: USERRES        total_staked_horus  212,200'
+	echo 'EXPECTED: HORUSREFUNDS   None'
+	echo '---------------------------------------------------------'
+	sleep 1
+
+	echo 'unstake id 4 = 4000 HORUS'
+	${CLEOS} push action horustokenio unstakehorus '["'$1'","4"]' -p ${1}
+	printdetails
+	echo 'EXPECTED: STAKEDHORUS    ids: 0,1,2,3,5'
+	echo 'EXPECTED: USERRES        total_staked_horus  212,200'
+	echo 'EXPECTED: HORUSREFUNDS   4 -> 4,000'
+	echo '---------------------------------------------------------'
+	sleep 10
+
+	printdetails
+	echo 'EXPECTED: STAKEDHORUS    ids: 0,1,2,3,5'
+	echo 'EXPECTED: USERRES        total_staked_horus  208,200'
+	echo 'EXPECTED: HORUSREFUNDS   None'
+	echo '---------------------------------------------------------'
+
+	echo 'unstaked id 0 = 500 HORUS'
+	${CLEOS} push action horustokenio unstakehorus '["'$1'","0"]' -p ${1}
+	sleep 4
+
+	echo 'unstaked id 3 = 100600 HORUS'
+	${CLEOS} push action horustokenio unstakehorus '["'$1'","3"]' -p ${1}
+	sleep 2
+	printdetails
+	echo 'EXPECTED: STAKEDHORUS    ids: 1,2,5'
+	echo 'EXPECTED: USERRES        total_staked_horus  208,200'
+	echo 'EXPECTED: HORUSREFUNDS    0 -> 500'
+	echo 'EXPECTED: HORUSREFUNDS    3 -> 100600'
+	echo '---------------------------------------------------------'
+
+	sleep 2
+
+	printdetails
+	echo 'EXPECTED: STAKEDHORUS    ids: 1,2,5'
+	echo 'EXPECTED: USERRES        total_staked_horus  207,700'
+	echo 'EXPECTED: HORUSREFUNDS   3 -> 100600'
+	echo '---------------------------------------------------------'
+
+	${CLEOS} push action horustokenio unstakehorus '["'$1'","1"]' -p ${1}
+	${CLEOS} push action horustokenio unstakehorus '["'$1'","2"]' -p ${1}
+	${CLEOS} push action horustokenio unstakehorus '["'$1'","5"]' -p ${1}
+	sleep 11
+	printdetails
+}
+
+########### TESTS  ###########
+#createhorus
+#createecash
+#issuehorus $FROM $TO $USER3 $USER4
+#printdetails
+
 
 # stake for myself
 # staketest $FROM $FROM
@@ -112,8 +231,9 @@ stakeforbob () {
 # stake for a friend
 #boundstest
 
-#staketest $FROM $TO
-printdetails
+# check refund capabilities
+checkrefunds $FROM $TO $USER3 $USER4
+
 
 killall nodeos
 
