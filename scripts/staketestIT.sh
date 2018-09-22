@@ -32,8 +32,8 @@ function printdetails () {
 	${CLEOS} get table horustokenio ${FROM} userres
 	echo 'HORUSREFUNDS'
 	${CLEOS} get table horustokenio ${FROM} horusrefunds
-	echo 'REFUNDS'
-	${CLEOS} get table horustokenio ${FROM} refunds
+	#echo 'REFUNDS'
+	#${CLEOS} get table horustokenio ${FROM} refunds
 	echo $FROM 'BALANCE:'
 	${CLEOS} get currency balance horustokenio ${FROM} HORUS
 	${CLEOS} get currency balance horustokenio ${FROM} ECASH
@@ -159,6 +159,14 @@ stakeforbob () {
 #      107,600 -  100    = 107,500
 #
 #  unstake 1, 5 and 2 :
+#    unstake 1:
+#      107,500 - 100 = 107,400
+#        wait 2 seconds ( 5 sec remaining )
+#
+#  unstake 5:
+#    107,400 - 7,000 = 100,400
+#      wait 7 seconds
+#
 checkrefunds () {
 	echo 'CREATE 6 STAKES'
 	${CLEOS} push action horustokenio stakehorus '["'$1'","'$1'","500.0000 HORUS"]' -p ${1}
@@ -172,16 +180,16 @@ checkrefunds () {
 	echo 'EXPECTED: USERRES        total_staked_horus  212,200'
 	echo 'EXPECTED: HORUSREFUNDS   None'
 	echo '---------------------------------------------------------'
-	sleep 1
+	echo 'sleep 1'; sleep 1
 
 	echo 'unstake id 4 = 4000 HORUS'
 	${CLEOS} push action horustokenio unstakehorus '["'$1'","4"]' -p ${1}
 	printdetails
 	echo 'EXPECTED: STAKEDHORUS    ids: 0,1,2,3,5'
 	echo 'EXPECTED: USERRES        total_staked_horus  212,200'
-	echo 'EXPECTED: HORUSREFUNDS   4 -> 4,000'
+	echo 'EXPECTED: HORUSREFUNDS   4 -> 4,000 (7 seconds remaining)'
 	echo '---------------------------------------------------------'
-	sleep 10
+	echo 'sleep 8'; sleep 8
 
 	printdetails
 	echo 'EXPECTED: STAKEDHORUS    ids: 0,1,2,3,5'
@@ -191,30 +199,70 @@ checkrefunds () {
 
 	echo 'unstaked id 0 = 500 HORUS'
 	${CLEOS} push action horustokenio unstakehorus '["'$1'","0"]' -p ${1}
-	sleep 4
+	echo 'sleep 4'; sleep 4
+	printdetails
+	echo 'EXPECTED: STAKEDHORUS    ids: 1,2,3,5'
+	echo 'EXPECTED: USERRES        total_staked_horus  208,200'
+	echo 'EXPECTED: HORUSREFUNDS    0 -> 500 (3 seconds remaingin)'
+	echo '---------------------------------------------------------'
 
 	echo 'unstaked id 3 = 100600 HORUS'
 	${CLEOS} push action horustokenio unstakehorus '["'$1'","3"]' -p ${1}
-	sleep 2
+	echo 'sleep 2'; sleep 2
 	printdetails
 	echo 'EXPECTED: STAKEDHORUS    ids: 1,2,5'
 	echo 'EXPECTED: USERRES        total_staked_horus  208,200'
-	echo 'EXPECTED: HORUSREFUNDS    0 -> 500'
-	echo 'EXPECTED: HORUSREFUNDS    3 -> 100600'
+	echo 'EXPECTED: HORUSREFUNDS    0 -> 500 (1 second remaining)'
+	echo 'EXPECTED: HORUSREFUNDS    3 -> 100600 (5 seconds remaining)'
 	echo '---------------------------------------------------------'
 
-	sleep 2
+	echo 'sleep 2'; sleep 2
 
 	printdetails
 	echo 'EXPECTED: STAKEDHORUS    ids: 1,2,5'
 	echo 'EXPECTED: USERRES        total_staked_horus  207,700'
-	echo 'EXPECTED: HORUSREFUNDS   3 -> 100600'
+	echo 'EXPECTED: HORUSREFUNDS   3 -> 100600 (3 seconds remaining)'
 	echo '---------------------------------------------------------'
 
+	echo 'unstaked id 1 = 100 HORUS'
 	${CLEOS} push action horustokenio unstakehorus '["'$1'","1"]' -p ${1}
-	${CLEOS} push action horustokenio unstakehorus '["'$1'","2"]' -p ${1}
+	echo 'sleep 2'; sleep 2
+	printdetails
+	echo 'EXPECTED: STAKEDHORUS    ids: 2,5'
+	echo 'EXPECTED: USERRES        total_staked_horus  207,700'
+	echo 'EXPECTED: HORUSREFUNDS   1 -> 100 (5 seconds remaining)'
+	echo 'EXPECTED: HORUSREFUNDS   3 -> 100600 (1 sec remaining)'
+	echo '---------------------------------------------------------'
+
+	echo 'unstaked id 5 = 7000 HORUS'
 	${CLEOS} push action horustokenio unstakehorus '["'$1'","5"]' -p ${1}
-	sleep 11
+	echo 'sleep 1'; sleep 1
+	printdetails
+	echo 'EXPECTED: STAKEDHORUS    ids: 2'
+	echo 'EXPECTED: USERRES        total_staked_horus  107,100'
+	echo 'EXPECTED: HORUSREFUNDS   1 -> 100 (4 seconds remaining)'
+	echo 'EXPECTED: HORUSREFUNDS   5 -> 7,000 (6 seconds remaining)'
+	echo '---------------------------------------------------------'
+
+	echo 'unstaked id 2 = 100000.0000 HORUS'
+	${CLEOS} push action horustokenio unstakehorus '["'$1'","2"]' -p ${1}
+	echo 'sleep 3'; sleep 3
+	printdetails
+	echo 'EXPECTED: STAKEDHORUS    None'
+	echo 'EXPECTED: USERRES        total_staked_horus  107,100'
+	echo 'EXPECTED: HORUSREFUNDS   1 -> 100 (1 seconds remaining)'
+	echo 'EXPECTED: HORUSREFUNDS   2 -> 100,000 (4 seconds remaining)'
+	echo 'EXPECTED: HORUSREFUNDS   5 -> 7,000 (3 seconds remaining)'
+	echo '---------------------------------------------------------'
+
+	echo 'sleep 3'; sleep 3
+	printdetails
+	echo 'EXPECTED: STAKEDHORUS    None'
+	echo 'EXPECTED: USERRES        total_staked_horus  100,000'
+	echo 'EXPECTED: HORUSREFUNDS   2 -> 100,000 (1 second remaining)'
+	echo '---------------------------------------------------------'
+
+	echo 'sleep 1'; sleep 1
 	printdetails
 }
 
