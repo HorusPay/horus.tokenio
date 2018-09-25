@@ -76,8 +76,10 @@
      "base": "",
      "fields": [
         {"name":"id", "type":"uint64"},
-        {"name":"request_time", "type":"time"},
-        {"name":"horus_amount", "type":"asset"}
+        {"name":"from", "type":"account_name"},
+        {"name":"to", "type":"account_name"},
+        {"name":"horus_amount", "type":"asset"},
+        {"name":"request_time", "type":"time"}
      ]
   },{
      "name": "refundbyid",

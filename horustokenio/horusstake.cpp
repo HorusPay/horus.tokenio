@@ -60,15 +60,17 @@ namespace horuspaytoken {
 
    // @abi table horusrefunds i64
    struct refund_requests {
-      uint64_t   id;
-      time       request_time;
-      asset      horus_amount;
+      uint64_t     id;
+      account_name from;
+      account_name to;
+      asset        horus_amount;
+      time         request_time;
 
       uint64_t  primary_key() const { return id; }
 
       // explicit serialization macro is not necessary,
       // used here only to improve compilation time
-      EOSLIB_SERIALIZE( refund_requests, (id)(request_time)(horus_amount) )
+      EOSLIB_SERIALIZE( refund_requests, (id)(from)(to)(horus_amount)(request_time) )
    };
 
    typedef multi_index< N(userres), user_resources>       user_resources_table;
@@ -126,15 +128,18 @@ namespace horuspaytoken {
    };
 
 
-   void inline horustokenio::create_horus_refund( const uint64_t& refund_id, account_name& owner, const asset&  stake_horus_delta ) {
-      horus_refunds_table horus_refunds( _self, owner );
+   void inline horustokenio::create_horus_refund( const uint64_t& refund_id, const account_name& from,
+                                                  const account_name& to, const asset&  stake_horus_delta ) {
+      horus_refunds_table horus_refunds( _self, from );
       auto horus_balance = stake_horus_delta;
 
       eosio_assert( horus_balance > asset(0, HORUS_SYMBOL), "must be a positive number" );
 
       print("creating new '", horus_balance, "' refund with id:", refund_id, "\n");
-      auto request = horus_refunds.emplace( owner, [&]( auto& r ) {
+      auto request = horus_refunds.emplace( from, [&]( auto& r ) {
          r.id           = refund_id;
+         r.from         = from;
+         r.to           = to;
          r.horus_amount = horus_balance;
          r.request_time = now();
       });
@@ -142,10 +147,10 @@ namespace horuspaytoken {
       // create deferred transaction
       print("please wait 7 days to be refunded\n");
       eosio::transaction out;
-      out.actions.emplace_back( permission_level{owner, N(active)}, _self, N(refundbyid), std::make_tuple(owner, request->id) );
+      out.actions.emplace_back( permission_level{from, N(active)}, _self, N(refundbyid), std::make_tuple(from, request->id) );
       out.delay_sec = refund_delay + 1;
-      //cancel_deferred( owner ); // TODO: Remove this line when repacing derred trxs is fixed
-      out.send( request->id, owner, true );
+      //cancel_deferred( from ); // TODO: Remove this line when repacing derred trxs is fixed
+      out.send( request->id, from, true );
    }
 
 
@@ -256,14 +261,14 @@ namespace horuspaytoken {
 
       staked_horus_table staked_index( _self, from );
 
-      auto unstake_itr = staked_index.find( stake_id );
+      auto stake_itr = staked_index.find( stake_id );
 
-      eosio_assert( unstake_itr != staked_index.end(), "staked row does not exist");
+      eosio_assert( stake_itr != staked_index.end(), "staked row does not exist");
 
-      create_horus_refund( unstake_itr->id, from, unstake_itr->horus_weight );
+      create_horus_refund( stake_itr->id, stake_itr->from, stake_itr->to, stake_itr->horus_weight );
       //create_or_update_refund( from, unstake_itr->to, -(unstake_itr->horus_weight) );
 
-      staked_index.erase( unstake_itr );
+      staked_index.erase( stake_itr );
    }
 
 
