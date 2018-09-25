@@ -592,6 +592,8 @@ BOOST_FIXTURE_TEST_CASE( unstakehorus_tests, horustokenio_tester ) try {
       auto alice_horus_refund_0 = get_horus_refunds( N(alice), 0 );
       REQUIRE_MATCHING_OBJECT( alice_horus_refund_0, mvo()
          ( "id", "0")
+         ( "from", "alice")
+         ( "to", "alice")
          ( "request_time", "1577836807")
          ( "horus_amount", "100.0000 HORUS")
       )
@@ -630,6 +632,8 @@ BOOST_FIXTURE_TEST_CASE( unstakehorus_tests, horustokenio_tester ) try {
       auto alice_horus_refund_1 = get_horus_refunds( N(alice), 1 );
       REQUIRE_MATCHING_OBJECT( alice_horus_refund_1, mvo()
          ( "id", "1")
+         ( "from", "alice")
+         ( "to", "bob")
          ( "request_time", "1577836818")
          ( "horus_amount", "100000.0000 HORUS")
       )
@@ -658,6 +662,8 @@ BOOST_FIXTURE_TEST_CASE( unstakehorus_tests, horustokenio_tester ) try {
       auto alice_horus_refund_2 = get_horus_refunds( N(alice), 2 );
       REQUIRE_MATCHING_OBJECT( alice_horus_refund_2, mvo()
          ( "id", "2" )
+         ( "from", "alice")
+         ( "to", "carol")
          ( "request_time", "1577836823" )
          ( "horus_amount", "1000000.0000 HORUS" )
       );
