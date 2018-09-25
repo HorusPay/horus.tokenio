@@ -66,8 +66,9 @@ private:
    void inline update_user_resources( account_name& owner,
                                       const asset&  stake_horus_delta );
 
-   void inline create_horus_refund( const uint64_t& refund_id, const account_name& owner,
-                                    const account_name& to, const asset& stake_horus_delta );
+   void inline create_horus_refund( const account_name& from,
+                                    const account_name& to,
+                                    const asset&        stake_horus_delta );
 
    // DEPRICATED !
    // void inline create_or_update_refund( account_name& from,

@@ -128,21 +128,22 @@ namespace horuspaytoken {
    };
 
 
-   void inline horustokenio::create_horus_refund( const uint64_t& refund_id, const account_name& from,
-                                                  const account_name& to, const asset&  stake_horus_delta ) {
+   void inline horustokenio::create_horus_refund( const account_name& from, const account_name& to,
+                                                  const asset&  stake_horus_delta ) {
       horus_refunds_table horus_refunds( _self, from );
       auto horus_balance = stake_horus_delta;
 
       eosio_assert( horus_balance > asset(0, HORUS_SYMBOL), "must be a positive number" );
 
-      print("creating new '", horus_balance, "' refund with id:", refund_id, "\n");
       auto request = horus_refunds.emplace( from, [&]( auto& r ) {
-         r.id           = refund_id;
+         r.id           = horus_refunds.available_primary_key();
          r.from         = from;
          r.to           = to;
          r.horus_amount = horus_balance;
          r.request_time = now();
       });
+      print("creating new '", horus_balance, "' refund with id:", request->id, "\n");
+
 
       // create deferred transaction
       print("please wait 7 days to be refunded\n");
@@ -265,7 +266,7 @@ namespace horuspaytoken {
 
       eosio_assert( stake_itr != staked_index.end(), "staked row does not exist");
 
-      create_horus_refund( stake_itr->id, stake_itr->from, stake_itr->to, stake_itr->horus_weight );
+      create_horus_refund( stake_itr->from, stake_itr->to, stake_itr->horus_weight );
       //create_or_update_refund( from, unstake_itr->to, -(unstake_itr->horus_weight) );
 
       staked_index.erase( stake_itr );
