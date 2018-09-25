@@ -187,7 +187,7 @@ checkrefunds () {
 	printdetails
 	echo 'EXPECTED: STAKEDHORUS    ids: 0,1,2,3,5'
 	echo 'EXPECTED: USERRES        total_staked_horus  212,200'
-	echo 'EXPECTED: HORUSREFUNDS   4 -> 4,000 (7 seconds remaining)'
+	echo 'EXPECTED: HORUSREFUNDS   0 -> 4,000 (7 seconds remaining)'
 	echo '---------------------------------------------------------'
 	echo 'sleep 8'; sleep 8
 
@@ -213,7 +213,7 @@ checkrefunds () {
 	echo 'EXPECTED: STAKEDHORUS    ids: 1,2,5'
 	echo 'EXPECTED: USERRES        total_staked_horus  208,200'
 	echo 'EXPECTED: HORUSREFUNDS    0 -> 500 (1 second remaining)'
-	echo 'EXPECTED: HORUSREFUNDS    3 -> 100600 (5 seconds remaining)'
+	echo 'EXPECTED: HORUSREFUNDS    1 -> 100600 (5 seconds remaining)'
 	echo '---------------------------------------------------------'
 
 	echo 'sleep 2'; sleep 2
@@ -221,7 +221,7 @@ checkrefunds () {
 	printdetails
 	echo 'EXPECTED: STAKEDHORUS    ids: 1,2,5'
 	echo 'EXPECTED: USERRES        total_staked_horus  207,700'
-	echo 'EXPECTED: HORUSREFUNDS   3 -> 100600 (3 seconds remaining)'
+	echo 'EXPECTED: HORUSREFUNDS   1 -> 100600 (3 seconds remaining)'
 	echo '---------------------------------------------------------'
 
 	echo 'unstaked id 1 = 100 HORUS'
@@ -230,8 +230,8 @@ checkrefunds () {
 	printdetails
 	echo 'EXPECTED: STAKEDHORUS    ids: 2,5'
 	echo 'EXPECTED: USERRES        total_staked_horus  207,700'
-	echo 'EXPECTED: HORUSREFUNDS   1 -> 100 (5 seconds remaining)'
-	echo 'EXPECTED: HORUSREFUNDS   3 -> 100600 (1 sec remaining)'
+	echo 'EXPECTED: HORUSREFUNDS   1 -> 100600 (1 sec remaining)'
+	echo 'EXPECTED: HORUSREFUNDS   2 -> 100 (5 seconds remaining)'
 	echo '---------------------------------------------------------'
 
 	echo 'unstaked id 5 = 7000 HORUS'
@@ -240,8 +240,8 @@ checkrefunds () {
 	printdetails
 	echo 'EXPECTED: STAKEDHORUS    ids: 2'
 	echo 'EXPECTED: USERRES        total_staked_horus  107,100'
-	echo 'EXPECTED: HORUSREFUNDS   1 -> 100 (4 seconds remaining)'
-	echo 'EXPECTED: HORUSREFUNDS   5 -> 7,000 (6 seconds remaining)'
+	echo 'EXPECTED: HORUSREFUNDS   2 -> 100 (4 seconds remaining)'
+	echo 'EXPECTED: HORUSREFUNDS   3 -> 7,000 (6 seconds remaining)'
 	echo '---------------------------------------------------------'
 
 	echo 'unstaked id 2 = 100000.0000 HORUS'
@@ -250,16 +250,16 @@ checkrefunds () {
 	printdetails
 	echo 'EXPECTED: STAKEDHORUS    None'
 	echo 'EXPECTED: USERRES        total_staked_horus  107,100'
-	echo 'EXPECTED: HORUSREFUNDS   1 -> 100 (1 seconds remaining)'
-	echo 'EXPECTED: HORUSREFUNDS   2 -> 100,000 (4 seconds remaining)'
-	echo 'EXPECTED: HORUSREFUNDS   5 -> 7,000 (3 seconds remaining)'
+	echo 'EXPECTED: HORUSREFUNDS   2 -> 100 (1 seconds remaining)'
+	echo 'EXPECTED: HORUSREFUNDS   3 -> 7,000 (3 seconds remaining)'
+	echo 'EXPECTED: HORUSREFUNDS   4 -> 100,000 (4 seconds remaining)'
 	echo '---------------------------------------------------------'
 
 	echo 'sleep 3'; sleep 3
 	printdetails
 	echo 'EXPECTED: STAKEDHORUS    None'
 	echo 'EXPECTED: USERRES        total_staked_horus  100,000'
-	echo 'EXPECTED: HORUSREFUNDS   2 -> 100,000 (1 second remaining)'
+	echo 'EXPECTED: HORUSREFUNDS   4 -> 100,000 (1 second remaining)'
 	echo '---------------------------------------------------------'
 
 	echo 'sleep 1'; sleep 1
