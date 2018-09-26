@@ -53,24 +53,11 @@ period the staking durration will automatically be renewed for the owner {{ from
 change at a later point in time.
 
 ```bash
-cleos push action horustokenio stakehorus '["from","receiver","1.0000 HORUS"]' -p from
+cleos push action horustokenio stakehorus '["from","receiver","10.0000 HORUS"]' -p from
 ```
 ex:
 ```bash
-cleos push action horustokenio stakehorus '["alice","alice","1.0000 HORUS"]' -p alice
-
-cleos get table horustokenio alice stakedhorus
-{
-  "rows": [{
-      "id": 0,
-      "from": "alice",
-      "to": "alice",
-      "horus_weight": "5.0000 HORUS",
-      "time_initial": 1534699728
-    }
-  ],
-  "more": false
-}
+cleos push action horustokenio stakehorus '["alice","alice","10.0000 HORUS"]' -p alice
 ```
 
 ### unstakehorus
@@ -92,7 +79,88 @@ cleos push action horustokenio claimreward '["owner","stake_id"]' -p owner
 Called when unstaking to refund the staked tokens over a period of time.
 
 ```bash
-cleos get table horustokenio owner refunds
+cleos push action horustokenio refundbyid '["owner","refund_id"]' -p owner
+```
+
+## Tables
+
+Users will pay for their own RAM
+
+### accounts
+```bash
+cleos get table horustokenio horustester1 accounts
+{
+  "rows": [{
+      "balance": "0.0554 ECASH"
+    },{
+      "balance": "1000000.0000 HORUS"
+    }
+  ],
+  "more": false
+}
+```
+
+### userres
+```bash
+cleos get table horustokenio horustester1 userres
+{
+  "rows": [{
+      "owner": "horustester1",
+      "total_staked_horus": "208200.0000 HORUS"
+    }
+  ],
+  "more": false
+}
+```
+
+### stakedhorus
+```bash
+cleos get table horustokenio horustester1 stakedhorus
+{
+  "rows": [{
+      "id": 1,
+      "from": "horustester1",
+      "to": "horustester2",
+      "horus_weight": "100.0000 HORUS",
+      "time_initial": 1537919744
+    },{
+      "id": 2,
+      "from": "horustester1",
+      "to": "horustester3",
+      "horus_weight": "100000.0000 HORUS",
+      "time_initial": 1537919744
+    },{
+      "id": 5,
+      "from": "horustester1",
+      "to": "horustester1",
+      "horus_weight": "7000.0000 HORUS",
+      "time_initial": 1537919744
+    }
+  ],
+  "more": false
+}
+```
+
+### horusrefunds
+```bash
+cleos get table horustokenio horustester1 horusrefunds
+{
+  "rows": [{
+      "id": 0,
+      "from": "horustester1",
+      "to": "horustester1",
+      "horus_amount": "500.0000 HORUS",
+      "request_time": 1537919753
+    },{
+      "id": 1,
+      "from": "horustester1",
+      "to": "horustester4",
+      "horus_amount": "100600.0000 HORUS",
+      "request_time": 1537919757
+    }
+  ],
+  "more": false
+}
 ```
 
 ---
@@ -105,6 +173,7 @@ Add HORUS tokens to an existing stake.  This will restart the initial stake time
 Claim all available rewards at once.
 
 ---
+built with eos v1.2.4
 To build in-source with eos, place the `eosio.token` and `horustokenio` directories into `/eos/contracts` and run `make`
 
 ```bash
