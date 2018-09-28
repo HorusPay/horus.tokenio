@@ -73,6 +73,23 @@ const char* const horustokenio_abi = R"=====(
         {"name":"horus_amount", "type":"asset"}
      ]
   },{
+     "name": "refund_requests",
+     "base": "",
+     "fields": [
+        {"name":"id", "type":"uint64"},
+        {"name":"from", "type":"account_name"},
+        {"name":"to", "type":"account_name"},
+        {"name":"horus_amount", "type":"asset"},
+        {"name":"request_time", "type":"time"}
+     ]
+  },{
+     "name": "refundbyid",
+     "base": "",
+     "fields": [
+        {"name":"owner", "type":"account_name"},
+        {"name":"refund_id", "type":"uint64"}
+     ]
+  },{
      "name": "refundhorus",
      "base": "",
      "fields": [
@@ -148,6 +165,10 @@ const char* const horustokenio_abi = R"=====(
       ## Description
       The intent of the {{ claimreward }} action is allow the {{ staked_horus:owner }} to claim ECASH for a specific {{ staked_horus:id }} that has surpassed the vesting period.  As a staking reward the digital asset ECASH will be issued at a 1% monthly rate of the staked HORUS for a stake greater than or equal to 1 million HORUS and at a 0.1% monthly rate for any stake less than 1 million.  In the future when the HorsuPay Payroll Portal is fully released, the 1 million HORUS token threshold will be removed and all stakes will mint ECASH at a 0.1% monthly rate.  After the 7 day vesting period the staking durration will automatically be renewed for the owner {{ from }} to continue claiming rewards.  This action may change at a later point in time."
     },{
+      "name": "refundbyid",
+      "type": "refundbyid",
+      "ricardian_contract": ""
+    },{
       "name": "rmtoken",
       "type": "rmtoken",
       "ricardian_contract": ""
@@ -180,6 +201,12 @@ const char* const horustokenio_abi = R"=====(
     },{
       "name": "refunds",
       "type": "refund_request",
+      "index_type": "i64",
+      "key_names" : ["owner"],
+      "key_types" : ["uint64"]
+    },{
+      "name": "horusrefunds",
+      "type": "refund_requests",
       "index_type": "i64",
       "key_names" : ["owner"],
       "key_types" : ["uint64"]
