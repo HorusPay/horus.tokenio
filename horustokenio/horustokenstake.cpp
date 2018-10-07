@@ -7,6 +7,7 @@
 #include <eosiolib/transaction.hpp>
 
 #include "horustokenstake.hpp"
+#include "utilities.hpp"
 
 
 namespace horuspaytoken {
@@ -37,24 +38,24 @@ namespace horuspaytoken {
 
    void inline horustokenio::update_user_resources( account_name& owner,
                                                     const asset&  stake_horus_delta ) {
-      user_resources_table totals_tbl( _self, owner );
+      user_resources_table user_res_table( _self, owner );
 
-      auto tot_itr = totals_tbl.find( owner );
+      auto user_res = user_res_table.find( owner );
 
-      if( tot_itr ==  totals_tbl.end() ) {
-         tot_itr = totals_tbl.emplace( owner, [&]( auto& tot ) {
-               tot.owner                 = owner;
-               tot.total_staked_horus    = stake_horus_delta;
+      if ( user_res ==  user_res_table.end() ) {
+         user_res = user_res_table.emplace( owner, [&]( auto& u ) {
+               u.owner               = owner;
+               u.total_staked_horus  = stake_horus_delta;
             });
       } else {
-         totals_tbl.modify( tot_itr, 0, [&]( auto& tot ) {
-               tot.total_staked_horus    += stake_horus_delta;
+         user_res_table.modify( user_res, 0, [&]( auto& u ) {
+               u.total_staked_horus += stake_horus_delta;
             });
       }
-      eosio_assert( asset(0, HORUS_SYMBOL) <= tot_itr->total_staked_horus, "insufficient staked total HORUS" );
+      eosio_assert( asset(0, HORUS_SYMBOL) <= user_res->total_staked_horus, "insufficient staked total HORUS" );
 
-      if ( tot_itr->total_staked_horus == asset(0, HORUS_SYMBOL) ) {
-         totals_tbl.erase( tot_itr );
+      if ( user_res->total_staked_horus == asset(0, HORUS_SYMBOL) ) {
+         user_res_table.erase( user_res );
       }
    };
 
@@ -62,19 +63,18 @@ namespace horuspaytoken {
    void inline horustokenio::create_horus_refund( const account_name& from, const account_name& to,
                                                   const asset&  stake_horus_delta ) {
       horus_refunds_table horus_refunds( _self, from );
-      auto horus_balance = stake_horus_delta;
+      // auto horus_balance = stake_horus_delta;
 
-      eosio_assert( horus_balance > asset(0, HORUS_SYMBOL), "must be a positive number" );
+      eosio_assert( stake_horus_delta > asset(0, HORUS_SYMBOL), "must be a positive number" );
 
       auto request = horus_refunds.emplace( from, [&]( auto& r ) {
          r.id           = horus_refunds.available_primary_key();
          r.from         = from;
          r.to           = to;
-         r.horus_amount = horus_balance;
+         r.horus_amount = stake_horus_delta;
          r.request_time = now();
       });
-      print("creating new '", horus_balance, "' refund with id:", request->id, "\n");
-
+      print("creating new '", stake_horus_delta, "' refund with id:", request->id, "\n");
 
       // create deferred transaction
       print("please wait 7 days to be refunded\n");
@@ -86,73 +86,22 @@ namespace horuspaytoken {
    }
 
 
-   // DEPRICATED !
-   // void inline horustokenio::create_or_update_refund( account_name& from,
-   //                                                    account_name  receiver,
-   //                                                    const asset&  stake_horus_delta ) {
-   //    refunds_table refunds_tbl( _self, from );
-   //    auto req = refunds_tbl.find( from );
+   void inline horustokenio::check_liquidity_for_staking( const account_name& from, const asset& stake_horus_quantity ) {
+      user_resources_table user_res_table( _self, from );
+      accounts             from_accounts( _self, from );
 
-   //    //create/update/delete refund
-   //    auto horus_balance = stake_horus_delta;
-   //    bool need_deferred_trx = false;
+      auto from_horus_account = from_accounts.find( stake_horus_quantity.symbol.name() );
+      auto user_res           = user_res_table.find( from );
 
-   //    // resources are same sign by assertions in delegatebw and undelegatebw
-   //    bool is_undelegating = (horus_balance.amount ) < 0;
-   //    bool is_delegating_to_self = ( from == receiver);
+      asset liquid_horus = ( user_res == user_res_table.end() ) ? from_horus_account->balance :
+                             from_horus_account->balance - user_res->total_staked_horus ;
 
-   //    if( is_delegating_to_self || is_undelegating ) {
-   //       if ( req != refunds_tbl.end() ) { //need to update refund
-   //          print("Modifing Refund\n");
-   //          refunds_tbl.modify( req, 0, [&]( refund_request& r ) {
-   //             if ( horus_balance < asset(0, HORUS_SYMBOL) ) {
-   //                r.request_time = now();
-   //             }
-   //             r.horus_amount -= horus_balance;
-   //             if ( r.horus_amount < asset(0, HORUS_SYMBOL) ) {
-   //                horus_balance = -r.horus_amount;
-   //                r.horus_amount = asset(0, HORUS_SYMBOL);
-   //             } else {
-   //                horus_balance = asset(0, HORUS_SYMBOL);
-   //             }
-   //          });
-
-   //          eosio_assert( asset(0, HORUS_SYMBOL) <= req->horus_amount, "negative HORUS refund amount" ); //should never happen
-
-   //          if ( req->horus_amount == asset(0, HORUS_SYMBOL) ) {
-   //             refunds_tbl.erase( req );
-   //             need_deferred_trx = false;
-   //          } else {
-   //             need_deferred_trx = true;
-   //          }
-
-   //       } else if ( horus_balance < asset(0, HORUS_SYMBOL) ) { //need to create refund
-   //          print("Creating Refund\n");
-   //          refunds_tbl.emplace( from, [&]( refund_request& r ) {
-   //             r.owner = from;
-
-   //             if ( horus_balance < asset(0, HORUS_SYMBOL) ) {
-   //                r.horus_amount = -horus_balance;
-   //                horus_balance = asset(0, HORUS_SYMBOL);
-   //             } // else r.net_amount = 0 by default constructor
-
-   //             r.request_time = now();
-   //          });
-   //          need_deferred_trx = true;
-   //       } // else stake increase requested with no existing row in refunds_tbl -> nothing to do with refunds_tbl
-   //    } /// end if is_delegating_to_self || is_undelegating
-
-   //    if ( need_deferred_trx ) {
-   //       print("Creating deferred refund transaction\n");
-   //       eosio::transaction out;
-   //       out.actions.emplace_back( permission_level{ from, N(active) }, _self, N(refundhorus), from );
-   //       out.delay_sec = refund_delay + 1;
-   //       cancel_deferred( from ); // TODO: Remove this line when replacing deferred trxs is fixed
-   //       out.send( from, from, true );
-   //    } else {
-   //       cancel_deferred( from );
-   //    }
-   // }
+      if ( liquid_horus < stake_horus_quantity ) {
+         string err = "overdraw, you cannot stake more than "
+                      + asset_to_string(liquid_horus);
+         eosio_assert( false, err.c_str() );
+      }
+   }
 
 
    /****************************************************************************
@@ -160,29 +109,15 @@ namespace horuspaytoken {
     ***************************************************************************/
 
 
-   void horustokenio::stakehorus( account_name from, account_name receiver, asset stake_horus_quantity) {
+   void horustokenio::stakehorus( account_name from, account_name receiver, asset stake_horus_quantity ) {
       require_auth( from );
-      asset current_staked_horus;
 
       eosio_assert( is_account( receiver ), "account does not exist");
       eosio_assert( stake_horus_quantity.is_valid(), "invalid offeror_asset");
-      eosio_assert( stake_horus_quantity >= asset(0, HORUS_SYMBOL), "must stake a positive amount" );
+      eosio_assert( stake_horus_quantity  > asset(0, HORUS_SYMBOL), "must stake a positive amount" );
       eosio_assert( stake_horus_quantity >= asset(100000, HORUS_SYMBOL), "minimum stake required is '10.0000 HORUS'" );
 
-      user_resources_table user_res( _self, from );
-      accounts        from_accounts( _self, from );
-
-      auto from_horus_account = from_accounts.find( stake_horus_quantity.symbol.name() );
-      auto user_resource_itr        = user_res.find( from );
-
-      if ( user_resource_itr == user_res.end() )
-         current_staked_horus = asset(0, HORUS_SYMBOL);
-      else
-         current_staked_horus = user_resource_itr->total_staked_horus;
-
-      eosio_assert( stake_horus_quantity <= (from_horus_account->balance - current_staked_horus ),
-                    "not enough liquid HORUS to stake" );
-
+      check_liquidity_for_staking( from, stake_horus_quantity );
       delegate_horus( from, receiver, stake_horus_quantity );
       update_user_resources( from, stake_horus_quantity );
    }

@@ -70,6 +70,9 @@ private:
                                     const account_name& to,
                                     const asset&        stake_horus_delta );
 
+   void inline check_liquidity_for_staking( const account_name& from,
+                                            const asset& stake_horus_quantity );
+
    // DEPRICATED !
    // void inline create_or_update_refund( account_name& from,
    //                                      account_name  receiver,

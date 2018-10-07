@@ -379,7 +379,7 @@ BOOST_FIXTURE_TEST_CASE( stakehorus_tests, horustokenio_tester ) try {
       stakehorus( N(alice), N(alice), asset::from_string("9.9999 HORUS") )
    );
    // attempt to stake more HORUS tokens then user has
-   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "not enough liquid HORUS to stake" ),
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "overdraw, you cannot stake more than 2000000.0000 HORUS" ),
       stakehorus( N(alice), N(alice), asset::from_string("2000001.0000 HORUS") )
    );
    // stake must be positive amount
