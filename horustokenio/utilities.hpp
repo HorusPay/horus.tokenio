@@ -7,6 +7,9 @@
 namespace horuspaytoken {
 
 
+/*. Taken from the great internet
+*.  https://eosio.stackexchange.com/questions/1952/how-to-convert-asset-to-string-in-a-contract
+*/
 std::string symbol_to_string(asset val)
 {
     uint64_t v = val.symbol.value;
