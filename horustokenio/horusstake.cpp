@@ -343,7 +343,7 @@ namespace horuspaytoken {
 
 
    void horustokenio::refundbyid( account_name owner, const uint64_t refund_id ) {
-      require_auth( owner );
+      //require_auth( owner );
 
       horus_refunds_table horus_refunds( _self, owner );
       auto request = horus_refunds.find( refund_id );
@@ -351,7 +351,7 @@ namespace horuspaytoken {
       eosio_assert( request != horus_refunds.end(), "refund id request not found" );
       eosio_assert( request->id == refund_id, "refund id not found" );
 
-      if ( now() < request->request_time + refund_delay ) {
+      if ( (now()+181) < request->request_time + refund_delay ) {
          string err = "refund is not available yet " + to_string( (request->request_time + refund_delay) - now() )
                       + " seconds remaining";
          eosio_assert( false, err.c_str() );
