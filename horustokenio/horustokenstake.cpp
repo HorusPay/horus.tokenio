@@ -238,7 +238,7 @@ namespace horuspaytoken {
 
 
    void horustokenio::refundbyid( account_name owner, const uint64_t refund_id ) {
-      require_auth( owner );
+      //require_auth( owner );
 
       horus_refunds_table horus_refunds( _self, owner );
       auto request = horus_refunds.find( refund_id );
