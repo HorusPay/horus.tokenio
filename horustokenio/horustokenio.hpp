@@ -70,10 +70,22 @@ private:
                                     const account_name& to,
                                     const asset&        stake_horus_delta );
 
+   void inline check_liquidity_for_staking( const account_name& from,
+                                            const asset& stake_horus_quantity );
+
+   asset inline calculate_staking_reward( const asset& horus_weight );
+
+   void inline check_stake_time( const time time_initial );
+
+   void inline update_stake_time( const account_name& owner, const uint64_t& stake_id );
+
+   void inline check_refund_time( time request_time );
+
    // DEPRICATED !
    // void inline create_or_update_refund( account_name& from,
    //                                      account_name  receiver,
    //                                      const asset&  stake_horus_delta );
 };
+
 
 }   // namespace horuspaytoken

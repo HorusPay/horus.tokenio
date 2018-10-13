@@ -6,7 +6,7 @@
 #include "horustokenio.hpp"
 
 #include <eosio.token/eosio.token.cpp>
-#include "horusstake.cpp"
+#include "horustokenstake.cpp"
 
 
 namespace horuspaytoken {
