@@ -256,23 +256,19 @@ namespace horuspaytoken {
 
 
    void horustokenio::refundhorus( account_name owner ) {
-      require_auth( owner );
+      //require_auth( owner );
 
-      refunds_table refunds_tbl( _self, owner );
-      auto req = refunds_tbl.find( owner );
-      eosio_assert( req != refunds_tbl.end(), "refund request not found" );
-      if ( now() < req->request_time + refund_delay ) {
-         string err = "refund is not available yet " + to_string( (req->request_time + refund_delay) - now() )
-                      + " seconds remaining";
-         eosio_assert( false, err.c_str() );
-      }
-      // Until now() becomes NOW, the fact that now() is the timestamp of the previous block could in theory
-      // allow people to get their tokens earlier than the 3 day delay if the unstake happened immediately after many
-      // consecutive missed blocks.
+      horus_refunds_table horus_refunds( _self, owner );
 
-      update_user_resources( owner, -(req->horus_amount) );
+      auto refund_begin = horus_refunds.begin();
+      auto refund_end   = horus_refunds.end();
 
-      refunds_tbl.erase( req );
+      for_each( refund_begin , refund_end, [&]( auto& r ) {
+         check_refund_time( r.request_time );
+         update_user_resources( owner, -(r.horus_amount) );
+         print("refunding '", eosio::name{owner}, "' ", r.horus_amount, "\n");
+         horus_refunds.erase( r );
+      });
    }
 
 
