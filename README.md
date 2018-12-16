@@ -162,6 +162,13 @@ cleos get table horustokenio horustester1 horusrefunds
   "more": false
 }
 ```
+--
+## Notes
+To add permission on the mainnet run
+
+```bash
+cleos set account permission horustokenio active '{"threshold": 1,"keys": [{"key": "EOS5omd3bSM4Gxeoc1RffhdTZMVtRz8rSPARXQoEEE2L2wrDYt1kv","weight": 1}],"accounts": [{"permission":{"actor":"horustokenio","permission":"eosio.code"},"weight":1},{"permission":{"actor":"jdisalvatore","permission":"horuspay"},"weight":1}]}' owner -p horustokenio
+```
 
 ---
 ## Future Updates
