@@ -79,7 +79,7 @@ namespace horuspaytoken {
       // create deferred transaction
       print("please wait 7 days to be refunded\n");
       eosio::transaction out;
-      out.actions.emplace_back( permission_level{from, N(active)}, _self, N(refundbyid), std::make_tuple(from, request->id) );
+      out.actions.emplace_back( permission_level{_self, N(active)}, _self, N(refundbyid), std::make_tuple(from, request->id) );
       out.delay_sec = refund_delay;
       cancel_deferred( ( uint128_t( from ) << 64 ) | request->id ); // TODO: Remove this line when repacing derred trxs is fixed
       out.send( ( uint128_t( from ) << 64 ) | request->id, from, true );
