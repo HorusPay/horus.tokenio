@@ -8,6 +8,8 @@ Jungle Testnet account running this contract: `horustokenio`
 Token Symbol: `HORUS`
 Token Symbol: `ECASH`
 
+code hash: 1acb3965ad831f151844e19647ef7f533e8b535c8968b7dc4244a2fdf4266ff2
+
 ## How to use this contract
 
 To view account balance
